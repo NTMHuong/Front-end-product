@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>List Product</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        let urlProduct = `http://localhost:8080/products`;
+
+        let urlCategories = `http://localhost:8080/categories`;
+
+        let currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+        function addNewProduct() {
+            let dataForm = new FormData($("#add-product")[0]);
+            let category = {
+                id: $("#category").val()
+            }
+            dataForm.append("category",JSON.stringify(category));
+            $.ajax({
+                type: "POST",
+                headers: {
+                    'Authorization': 'Bearer ' + currentUser.token
+                },
+                cache: false,
+                contentType: false,
+                processData: false,
+                method: 'POST',
+                enctype: "multipart/form-data",
+                data: dataForm,
+                url: urlProduct,
+                success: successHandler
+
+            }).fail(function (){
+                // window.location.href = "/product/templates/product/list.html"
+            });
+            event.preventDefault();
+        }
+
+        //phan trang
+        let page = 0;
+
+        function nextPage() {
+            page++;
+            successHandler();
+        }
+
+        function previousPage() {
+            page--;
+            successHandler();
+        }
+
+        function successHandler() {
+            $.ajax({
+                type: "GET",
+                url: urlProduct + `?page=${page}`,
+                success: function (data) {
+                    let content = '    <tr>\n' +
+                        '        <td>Name</td>\n' +
+                        '        <td>Price</td>\n' +
+                        '        <td>Description</td>\n' +
+                        '        <td>Image</td>\n' +
+                        '        <td>Category</td>\n' +
+                        '        <td>Edit</td>\n' +
+                        '        <td>Delete</td>\n' +
+                        '        <td>View</td>\n' +
+                        '    </tr>';
+                    for (let i = 0; i < data.content.length; i++) {
+                        content += getProduct(data.content[i]);
+                    }
+                    document.getElementById('productList').innerHTML = content;
+                }
+            });
+        }
+
+        function getProduct(product) {
+            return `<tr><td>${product.name}</td><td>${product.price}</td><td >${product.description}</td><td >${product.image}</td><td >${product.category?.name}</td>` +
+                `<td><button onclick="editProductForm(${product.id})">Edit</button></td>
+                <td><button onclick="deleteProduct(${product.id})">Delete</button></td>
+                <td><button onclick="inforProduct(${product.id})">View</button></td></tr>`;
+        }
+
+
+        function editProduct(id) {
+            let dataForm = new FormData($("#edit-product")[0]);
+            $.ajax({
+                type: "PUT",
+                cache: false,
+                contentType: false,
+                processData: false,
+                method: 'PUT',
+                enctype: "multipart/form-data",
+                data: dataForm,
+                //tên API
+                url: urlProduct,
+                success: successHandler
+            })
+        }
+
+        function editProductForm(id) {
+            $.ajax({
+                url: "/products/" + id,
+                type: "GET",
+                success: function (data) {
+                    $("#edit-product").html(
+                        `<table>
+                        <tr>
+                            <td>Name:</td>
+                            <td><input type="text" value="data.name" id="name1" placeholder="name"></td>
+                        </tr>
+                        <tr>
+                            <td>Price:</td>
+                            <td><input type="text" value="data.price" id="price1" placeholder="price"></td>
+                        </tr>
+                        <tr>
+                            <td>Description:</td>
+                            <td><input type="text" value="data.description" id="description1" placeholder="description"></td>
+                        </tr>
+                        <tr>
+                            <td>Image:</td>
+                            <td><input type="file" value="data.image" id="image1" placeholder="image"></td>
+                        </tr>
+                        <tr>
+                            <td>Category: </td>
+                            <td><select name="category1" id="category"></select></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><input type="submit" value="Edit" onClick="editProduct(${data.id})"></td>
+                        </tr>
+                    </table>`
+                    )
+                }
+            })
+
+        }
+
+        function inforProduct(id) {
+            $.ajax({
+                url: "/products/" + id,
+                type: "GET",
+                headers: {
+                    'Authorization': 'Bearer ' + currentUser.token
+                },
+                success: function (data) {
+                    alert("id = " + data.id + "name = " + data.name + "price = " + data.price + "description = "
+                        + data.description + "image = " + data.image + "category = " + data.category);
+                }
+            }).fail(function (){
+                window.location.href = "/product/templates/product/login.html"
+            });
+        }
+
+        //Thêm đoạn script với nội dung như sau để gửi lệnh xóa
+
+        function deleteProduct(id) {
+            $.ajax({
+                url: urlProduct + id,
+                type: "DELETE",
+                headers: {
+                    'Authorization': 'Bearer ' + currentUser.token
+                },
+                success: function (data) {
+                    successHandler();
+                }
+            }).fail(function (){
+                window.location.href = "/product/templates/product/login.html"
+            });
+        }
+        $(document).ready(function () {
+            successHandler();
+        })
+
+        function showCategory(category) {
+            let content = `<option value="${category.id}">${category.name}</option>`;
+            return content;
+        }
+
+        function showListCategory() {
+            $.ajax({
+                type: "GET",
+                url: urlCategories,
+                success: function (data) {
+                    let content = '';
+                    for (let i = 0; i < data.length; i++) {
+                        content += showCategory(data[i]);
+                    }
+                    $("#category").html(content);
+                }
+            });
+        }
+
+        showListCategory();
+    </script>
+</head>
+<body>
+
+<h3>Create new Product Form</h3>
+<form id="add-product">
+    <table>
+        <tr>
+            <td>Name:</td>
+            <td><input type="text" name="name" id="name" placeholder="name"></td>
+        </tr>
+        <tr>
+            <td>Price:</td>
+            <td><input type="text" id="price" name="price" placeholder="price"></td>
+        </tr>
+        <tr>
+            <td>Description:</td>
+            <td><input type="text" id="description" name="description" placeholder="description"></td>
+        </tr>
+        <tr>
+            <td>Image:</td>
+            <td><input type="file" id="image" name="image" placeholder="image"></td>
+        </tr>
+        <tr>
+            <td>Category:</td>
+            <td>
+                <select name="category1" id="category"></select>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><input type="button" value="Add" onclick="addNewProduct()"></td>
+        </tr>
+    </table>
+</form>
+<form id="edit-product"></form>
+
+<h1>Product List</h1>
+<table id="productList"></table>
+<input type="submit" value="previous" onclick="previousPage()"><input type="submit" value="next" onclick="nextPage()">
+
+</body>
+</html>
